@@ -9,7 +9,41 @@ The idea is that I'm applying to xAI but there's so many engineering positions t
 
 I would like to build an app that is a functional conceptual re-design of the https://x.ai/careers/open-roles page. The UI of this will be a close of grok.com with the app being a simple chat interface, which file attachment allowing the user to upload a PDF of their resume/CV, a Locations tab to filter by location, and a Department tab to filter by department. The idea is that it reverses the function of a candidate needing to search through each open position to rather having the candidate type in their interests, skills, and upload their CV to get a ranked result of top matches. The candidate also gets to ask the Grok LLM directly questions to quickly get answers regarding open positions in a chat format.
 
-This project is built in Next.JS, typescript, and hosted on Vercel. For LLM apis, lets stick to using Grok from xAI as our main provider. Let's use the Vercel AI SDK as our api to call LLMs, embeddings, and other related functions. To keep this a lightweight prototype, let's stick to building as much as we can in this stack. Perhaps not even spinning up an external DB if we can use a vercel service instead.
+We can scrape the job listings from Greenhouse using this example request
+
+```
+curl 'https://job-boards.greenhouse.io/xai?_data=routes%2F%24url_token' \
+  -H 'accept: */*' \
+  -H 'accept-language: en-US,en;q=0.9' \
+  -H 'priority: u=1, i' \
+  -H 'referer: https://job-boards.greenhouse.io/xai' \
+  -H 'sec-ch-ua: "Google Chrome";v="137", "Chromium";v="137", "Not/A)Brand";v="24"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "macOS"' \
+  -H 'sec-fetch-dest: empty' \
+  -H 'sec-fetch-mode: cors' \
+  -H 'sec-fetch-site: same-origin' \
+  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
+```
+
+This project is built in Next.JS, typescript, tailwindcss, and hosted on Vercel. Let's use Neon DB (vercel integration) for the postgres db, with vector embedding storage and vector search enabled for the embeddings. For LLM apis, lets stick to using Grok from xAI as our main provider. Let's use the Vercel AI SDK as our api to call LLMs, embeddings, and other related functions. To keep this a lightweight prototype, let's stick to building as much as we can in this stack. Perhaps not even spinning up an external DB if we can use a vercel service instead.
+
+# Database
+
+The DB is Neon (vercel integration) and the project is called xai-careers-listings. We need to create a table called job-listings, enable pgvector on it. We will use this table for vector search.
+
+# File upload
+
+Use Vercel Blob for the PDF upload. This app only supports PDF upload for resumes/ cvs.
+
+# Vector search
+
+When doing vector search, use an LLM to construct the search embedding. It should contain text like "The users interests are XYZ. [Insert more info about them]. Here's the contents of their CV:\n [Insert CV]" -> convert to an embedding -> search against job postings.
+
+# Chat Storage
+we don't need to store auth or chat messages for this MVP. For now we can restart their chat when the page refreshes.
+
+# General rules
 
 Avoid technical debt at all cost. Prioritize more thinking and work instead of quick fixes that incur technical debt.
 
