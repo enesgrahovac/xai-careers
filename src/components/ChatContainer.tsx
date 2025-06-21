@@ -71,8 +71,8 @@ export default function ChatContainer() {
              */
             className={
                 hasMessages
-                    ? "flex flex-col flex-1 w-full min-h-0 px-2"
-                    : "flex flex-col flex-1 justify-center w-full min-h-0 px-2"
+                    ? "flex flex-col flex-1 w-full min-h-0"
+                    : "flex flex-col flex-1 justify-center w-full min-h-0"
             }
         >
             {hasMessages && (
