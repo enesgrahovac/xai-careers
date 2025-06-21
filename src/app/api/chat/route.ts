@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const { messages } = await req.json();
 
     const result = streamText({
-        model: xai("grok-3-mini"),
+        model: xai("grok-3-mini-fast"),
         messages,
     });
 
