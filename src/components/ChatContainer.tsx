@@ -63,10 +63,16 @@ export default function ChatContainer() {
 
     return (
         <div
+            /*
+             * Fill all remaining vertical space after the fixed header that lives in
+             * `layout.tsx`.  Because the <body> is a flex-column container, simply
+             * applying `flex-1` here ensures we grow to the full viewport height on
+             * every device without having to hard-code `calc(100vh-56px)`.
+             */
             className={
                 hasMessages
-                    ? "flex flex-col h-[calc(100vh-56px)] w-full"
-                    : "flex flex-col min-h-[calc(100vh-56px)] justify-center w-full"
+                    ? "flex flex-col flex-1 w-full"
+                    : "flex flex-col flex-1 justify-center w-full"
             }
         >
             {hasMessages && (
@@ -85,10 +91,20 @@ export default function ChatContainer() {
                     </div>
                 </div>
             )}
+            {!hasMessages && (
+                <div className="text-center mb-8 space-y-4">
+                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+                        Find your perfect role at xAI
+                    </h1>
+                    <p className="text-gray-600 dark:text-gray-400">
+                        We've ingested all of the open roles at xAI and can help you find the best fit.
+                    </p>
+                </div>
+            )}
             <div
                 className={
                     hasMessages
-                        ? "pb-4 max-w-3xl mx-auto w-full"
+                        ? "pb-4 px-4 sm:px-0 max-w-3xl mx-auto w-full"
                         : "px-4 max-w-3xl mx-auto w-full"
                 }
             >

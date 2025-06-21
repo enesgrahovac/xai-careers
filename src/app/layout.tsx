@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next"
 
@@ -19,13 +20,20 @@ export const metadata: Metadata = {
     description: "Use AI to find your best position at xAI",
 };
 
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    // Prevent iOS from zooming content slightly when orientation changes
+    maximumScale: 1,
+};
+
 export default function RootLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        <html lang="en" className="min-h-screen">
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
             >

@@ -164,7 +164,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
     return (
         <form
             onSubmit={handleSubmit}
-            className="w-full max-w-4xl bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/15 rounded-2xl p-4 shadow-sm space-y-3 relative"
+            className="w-full bg-white md:max-w-4xl dark:bg-zinc-900 border border-black/10 dark:border-white/15 rounded-2xl p-4 shadow-sm space-y-3 relative"
         >
             {/* Text area */}
             <textarea
@@ -183,7 +183,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
             />
 
             {/* Actions row */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap md:flex-nowrap items-center gap-2">
                 {/* Attachment */}
                 <Tooltip content="Attach your resume or CV (PDF only)">
                     <button
@@ -226,7 +226,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                             className="group flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-3xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/10 dark:border-white/15"
                         >
                             <GlobeAltIcon className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
-                            Location
+                            <span className="hidden sm:inline">Location</span>
                             <ChevronDownIcon className="h-4 w-4" />
                         </button>
                         {locOpen && (
@@ -261,7 +261,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                             className="group flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-3xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/10 dark:border-white/15"
                         >
                             <Squares2X2Icon className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
-                            Department
+                            <span className="hidden sm:inline">Department</span>
                             <ChevronDownIcon className="h-4 w-4" />
                         </button>
                         {deptOpen && (
