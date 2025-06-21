@@ -75,11 +75,8 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         if (disabled || !message.trim()) return;
         onSend(message.trim(), selectedLocations, selectedDepartments);
         setMessage("");
-        // Keep the textarea focused so the user can continue typing.
-        // Slight delay ensures focus after any re-render.
-        setTimeout(() => {
-            textareaRef.current?.focus();
-        }, 100);
+        // Focus immediately after sending so user can continue typing
+        textareaRef.current?.focus();
     };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -125,13 +122,6 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         };
     }, [locOpen, deptOpen]);
 
-    // Refocus textarea when it becomes enabled after a request finishes.
-    useEffect(() => {
-        if (!disabled) {
-            textareaRef.current?.focus();
-        }
-    }, [disabled]);
-
     return (
         <form
             onSubmit={handleSubmit}
@@ -141,7 +131,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
             <textarea
                 rows={1}
                 placeholder="What's your ideal job?"
-                className={`w-full resize-none outline-none bg-transparent text-sm sm:text-base placeholder-zinc-500 ${disabled ? 'opacity-50' : ''}`}
+                className="w-full resize-none outline-none bg-transparent text-sm sm:text-base placeholder-zinc-500"
                 ref={textareaRef}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -151,7 +141,6 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                         if (!disabled) send();
                     }
                 }}
-                disabled={disabled}
             />
 
             {/* Actions row */}

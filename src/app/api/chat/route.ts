@@ -65,9 +65,24 @@ Below is a JSON array with all open job listings. Each item has the following fi
 
 When answering the user's questions, rely ONLY on this data. Do not hallucinate roles that are not listed. If a question cannot be answered from the listings, politely say you don't have that information. If the array of jobs is empty, politely say that no roles match the user's filters.
 
+# How to present recommended jobs
+
+• When you are **confident** you want to recommend one or more roles, output a self-closing HTML tag named <joblistingcard … /> **for each role**.
+
+• Give it the following attributes (all lowercase):
+    id="1234567"                  ← Greenhouse job id
+    title="Senior SWE – Infra"
+    department="Engineering, Research & Product"
+    payrange="$180-230 k"         ← omit if blank
+    locations="Palo Alto, Remote" ← comma-separated if multiple
+    summary="Own and scale Grok's infra. High impact." ← ≤ 2 lines
+
+• Do NOT wrap the tag in markdown code fences, do NOT indent it, do NOT emit a closing tag.  Place every card on its own line **at the very end** of your answer. You may include normal prose earlier in the answer.
+
+• **Never** include <joblistingcard> tags in your internal "reasoning" (chain-of-thought) output. Only include them in the final answer.
+
 The current open job listings are:
 ${JSON.stringify(jobs)}`;
-
 }
 
 /**
@@ -184,10 +199,10 @@ export async function POST(req: Request) {
     }
 
     const result = streamText({
-        model: xai("grok-3-mini-fast"),
+        model: xai("grok-3-mini"),
         providerOptions: {
             xai: {
-                reasoningEffort: "medium",
+                reasoningEffort: "low",
             },
         },
         messages: preparedMessages,
@@ -210,8 +225,8 @@ export async function POST(req: Request) {
             let detailsOpen = false;   // true while the <details> block is still open
             let hasReasoningContent = false; // track if we have any reasoning content
 
-            // More comprehensive cleaning function
-            const cleanThinkingTags = (text: string): string => {
+            // Removes details/summary and thinking markers but **not** job card tags.
+            const cleanTextTags = (text: string): string => {
                 return text
                     // Remove opening details tags (any variation)
                     .replace(/<details[^>]*>/gi, "")
@@ -228,10 +243,15 @@ export async function POST(req: Request) {
                     .replace(/Thinking\.\.\.?/gi, "");
             };
 
+            // Extends cleanTextTags by also removing any job card tags so they never appear in reasoning.
+            const cleanReasoningTags = (text: string): string => {
+                return cleanTextTags(text).replace(/<joblistingcard[^>]*>/gi, "");
+            };
+
             for await (const part of fullStream) {
                 if (part.type === "reasoning") {
-                    // Clean the reasoning text thoroughly
-                    let cleanedDelta = cleanThinkingTags(part.textDelta);
+                    // Clean the reasoning text thoroughly, also stripping job card tags
+                    let cleanedDelta = cleanReasoningTags(part.textDelta);
 
                     // Only open details block if we haven't already and we have content
                     if (!detailsOpened && cleanedDelta.trim()) {
@@ -255,8 +275,8 @@ export async function POST(req: Request) {
                         detailsOpen = false;
                     }
 
-                    // Clean any stray thinking tags from text content
-                    let cleanedTextDelta = cleanThinkingTags(part.textDelta);
+                    // Clean any stray thinking tags from text content (do NOT remove job cards)
+                    let cleanedTextDelta = cleanTextTags(part.textDelta);
 
                     if (cleanedTextDelta.trim()) {
                         controller.enqueue(encoder.encode(cleanedTextDelta));

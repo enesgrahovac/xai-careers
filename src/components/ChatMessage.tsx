@@ -6,6 +6,7 @@ import remarkBreaks from "remark-breaks";
 import rehypeRaw from "rehype-raw";
 import React from "react";
 import { ChevronDownIcon, LightBulbIcon } from "@heroicons/react/24/outline";
+import JobListingCard from "./JobListingCard";
 
 export interface ChatMessageProps {
     role: "user" | "assistant";
@@ -119,6 +120,27 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                                 <ChevronDownIcon className="w-4 h-4 ml-2 transition-transform duration-200 -rotate-90 group-open:rotate-0" />
                             </summary>
                         ),
+                        // Custom HTML tag <joblistingcard> rendered by the assistant.
+                        joblistingcard: ({ node, ...props }: any) => {
+                            // Props arrive as lowercase attribute names.
+                            const { id, title, locations = "", department = "", payrange, summary = "" } = props;
+                            const locArray = typeof locations === "string"
+                                ? (locations as string)
+                                    .split(",")
+                                    .map((l) => l.trim())
+                                    .filter(Boolean)
+                                : [];
+                            return (
+                                <JobListingCard
+                                    id={id}
+                                    title={title}
+                                    locations={locArray}
+                                    department={department}
+                                    payRange={payrange}
+                                    summary={summary}
+                                />
+                            );
+                        },
                     }}
                     className="rounded-3xl px-4 py-3 max-w-3xl w-full prose dark:prose-invert break-words leading-relaxed min-h-7 text-black dark:text-white"
                 >
