@@ -9,12 +9,6 @@ export const maxDuration = 30;
 // Types
 // -----------------------------------------------------------------------------
 
-type DepartmentCategory =
-    | "Engineering, Research & Product"
-    | "Human Data"
-    | "Data Center Operations"
-    | "Other";
-
 type ChatMessage = {
     role: "system" | "user" | "assistant";
     content: string;

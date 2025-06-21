@@ -126,8 +126,8 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                     rehypePlugins={[rehypeRaw]}
                     skipHtml={false}
                     components={{
-                        p: ({ node: _node, ...props }) => <p {...props} className="my-3 leading-relaxed" />,
-                        details: ({ node: _node, ...props }) => (
+                        p: ({ ...props }) => <p {...props} className="my-3 leading-relaxed" />,
+                        details: ({ ...props }) => (
                             <details
                                 {...props}
                                 open={isThinking}
@@ -136,7 +136,7 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                                 {props.children}
                             </details>
                         ),
-                        summary: ({ node: _node, ...props }) => (
+                        summary: ({ ...props }) => (
                             <summary
                                 {...props}
                                 className="flex items-center text-gray-500 dark:text-gray-400 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
@@ -147,7 +147,7 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                             </summary>
                         ),
                         // Custom HTML tag <joblistingcard> rendered by the assistant.
-                        joblistingcard: ({ node: _node, ...props }: {
+                        joblistingcard: ({ ...props }: {
                             id?: string;
                             title?: string;
                             locations?: string;

@@ -226,7 +226,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                             className="group flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-3xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/10 dark:border-white/15"
                         >
                             <GlobeAltIcon className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
-                            Locations
+                            Location
                             <ChevronDownIcon className="h-4 w-4" />
                         </button>
                         {locOpen && (
@@ -261,7 +261,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                             className="group flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-3xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/10 dark:border-white/15"
                         >
                             <Squares2X2Icon className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
-                            Departments
+                            Department
                             <ChevronDownIcon className="h-4 w-4" />
                         </button>
                         {deptOpen && (

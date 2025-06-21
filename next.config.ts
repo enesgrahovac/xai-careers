@@ -2,12 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
     /* config options here */
-    experimental: {
-        // Ensure pdf-parse (which depends on Node built-ins) is kept as an
-        // external dependency when bundling route handlers that run in the
-        // Node.js runtime.
-        serverComponentsExternalPackages: ["pdf-parse"],
-    },
+    // Opt-out specific dependencies from being bundled in Server Components / Route Handlers.
+    // See: https://nextjs.org/docs/app/api-reference/config/next-config-js/serverExternalPackages
+    serverExternalPackages: ["pdf-parse"],
     webpack(config, { isServer }) {
         // Additional safeguard: mark pdf-parse as external so that Next's
         // webpack bundling doesn't try to bundle it (which fails because the
