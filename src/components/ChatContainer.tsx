@@ -97,7 +97,7 @@ export default function ChatContainer() {
                         Find your perfect role at xAI
                     </h1>
                     <p className="text-gray-600 dark:text-gray-400">
-                        We've ingested all of the open roles at xAI and can help you find the best fit.
+                        We&apos;ve ingested all of the open roles at xAI and can help you find the best fit.
                     </p>
                 </div>
             )}
