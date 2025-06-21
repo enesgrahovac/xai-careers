@@ -36,12 +36,54 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
         }
     }, [isThinking]);
 
-    let renderedContent = content;
+    // Frontend safeguard: Clean up any duplicate thinking tags that might slip through
+    const cleanDuplicateThinkingTags = (text: string): string => {
+        // Remove duplicate details/summary blocks - keep only the first one
+        let cleaned = text;
+
+        // Find all details blocks
+        const detailsRegex = /<details><summary>(.*?)<\/summary>([\s\S]*?)<\/details>/gi;
+        const matches = [...text.matchAll(detailsRegex)];
+
+        if (matches.length > 1) {
+            // If we have multiple thinking blocks, merge their content
+            const firstMatch = matches[0];
+            let combinedContent = '';
+
+            // Combine content from all thinking blocks
+            matches.forEach((match, index) => {
+                if (index === 0) {
+                    combinedContent = match[2]; // First block's content
+                } else {
+                    combinedContent += '\n\n' + match[2]; // Append subsequent content
+                }
+            });
+
+            // Replace all thinking blocks with a single merged one
+            const firstSummary = firstMatch[1];
+            const mergedBlock = `<details><summary>${firstSummary}</summary>${combinedContent}</details>`;
+
+            // Remove all existing thinking blocks and replace with merged one
+            cleaned = text.replace(detailsRegex, '');
+            // Add the merged block at the beginning
+            cleaned = mergedBlock + '\n\n' + cleaned.trim();
+        }
+
+        // Additional cleanup: remove any orphaned opening tags
+        cleaned = cleaned
+            .replace(/<details><summary>💡 Thinking\.\.\.<\/summary>\s*(?=<details>)/gi, '')
+            .replace(/(<details><summary>💡 Thinking\.\.\.<\/summary>\s*){2,}/gi, '<details><summary>💡 Thinking...</summary>\n\n');
+
+        return cleaned;
+    };
+
+    let renderedContent = cleanDuplicateThinkingTags(content);
+
     const summaryRegex = /<details><summary>(.*?)<\/summary>/;
-    const match = content.match(summaryRegex);
+    const match = renderedContent.match(summaryRegex);
     if (match) {
         const summaryText = isThinking ? `Thinking for ${elapsed.toFixed(1)}s` : `Thought for ${elapsed.toFixed(1)}s`;
-        renderedContent = content.replace(summaryRegex, `<details><summary>${summaryText}</summary>`);
+        renderedContent = renderedContent.replace(summaryRegex, `<details><summary>${summaryText}</summary>`);
     }
 
     const containerClasses = `w-full flex mb-5 ${isUser ? "justify-end" : "justify-start"}`;

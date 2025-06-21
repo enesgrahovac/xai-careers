@@ -25,35 +25,61 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
     const locDropdownRef = useRef<HTMLDivElement>(null);
     const deptDropdownRef = useRef<HTMLDivElement>(null);
 
-    const LOCATIONS = ["Palo Alto", "San Francisco", "New York", "Remote"] as const;
-    const DEPARTMENTS = [
-        "Engineering",
-        "Research",
-        "Infrastructure",
-        "Product",
+    // Hard-coded options from official website
+    const LOCATIONS = [
+        "Any",
+        "Palo Alto",
+        "San Francisco",
+        "London",
+        "Dublin",
+        "Remote",
+        "Memphis",
     ] as const;
 
-    const [selectedLocations, setSelectedLocations] = useState<string[]>([...LOCATIONS]);
-    const [selectedDepartments, setSelectedDepartments] = useState<string[]>([
-        ...DEPARTMENTS,
-    ]);
+    const DEPARTMENTS = [
+        "Any",
+        "Engineering, Research & Product",
+        "Human Data",
+        "Data Center Operations",
+        "Other",
+    ] as const;
+
+    const [selectedLocations, setSelectedLocations] = useState<string[]>(["Any"]);
+    const [selectedDepartments, setSelectedDepartments] = useState<string[]>(["Any"]);
 
     const toggleLocation = (loc: string) => {
-        setSelectedLocations((prev) =>
-            prev.includes(loc) ? prev.filter((l) => l !== loc) : [...prev, loc]
-        );
+        setSelectedLocations((prev) => {
+            if (loc === "Any") {
+                return ["Any"]; // selecting "Any" clears others
+            }
+            const newSet = prev.includes(loc)
+                ? prev.filter((l) => l !== loc)
+                : [...prev.filter((l) => l !== "Any"), loc];
+            return newSet.length === 0 ? ["Any"] : newSet;
+        });
     };
 
     const toggleDepartment = (dept: string) => {
-        setSelectedDepartments((prev) =>
-            prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]
-        );
+        setSelectedDepartments((prev) => {
+            if (dept === "Any") {
+                return ["Any"];
+            }
+            const newSet = prev.includes(dept)
+                ? prev.filter((d) => d !== dept)
+                : [...prev.filter((d) => d !== "Any"), dept];
+            return newSet.length === 0 ? ["Any"] : newSet;
+        });
     };
 
     const send = () => {
         if (disabled || !message.trim()) return;
         onSend(message.trim(), selectedLocations, selectedDepartments);
         setMessage("");
+        // Keep the textarea focused so the user can continue typing.
+        // Slight delay ensures focus after any re-render.
+        setTimeout(() => {
+            textareaRef.current?.focus();
+        }, 100);
     };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -98,6 +124,13 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, [locOpen, deptOpen]);
+
+    // Refocus textarea when it becomes enabled after a request finishes.
+    useEffect(() => {
+        if (!disabled) {
+            textareaRef.current?.focus();
+        }
+    }, [disabled]);
 
     return (
         <form

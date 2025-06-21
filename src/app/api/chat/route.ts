@@ -12,6 +12,43 @@ interface ChatRequestBody {
 }
 
 // -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+
+type DepartmentCategory =
+    | "Engineering, Research & Product"
+    | "Human Data"
+    | "Data Center Operations"
+    | "Other";
+
+/**
+ * Maps arbitrary department names coming from Greenhouse to one of the
+ * top-level categories used in the UI.
+ */
+function categorizeDepartment(dep: string | null): DepartmentCategory {
+    if (!dep) return "Other";
+
+    const d = dep.toLowerCase();
+
+    // Engineering / Research / Product bucket
+    if (/(engineering|research|product|infrastructure|software)/.test(d)) {
+        return "Engineering, Research & Product";
+    }
+
+    // Human Data bucket
+    if (d.includes("human data")) {
+        return "Human Data";
+    }
+
+    // Data Center Operations bucket (include IT/Operations keywords)
+    if (/(data\s*center|operations|information technology|it)/.test(d)) {
+        return "Data Center Operations";
+    }
+
+    return "Other";
+}
+
+// -----------------------------------------------------------------------------
 // Prompt builders
 // -----------------------------------------------------------------------------
 
@@ -26,9 +63,20 @@ function buildIdentityPrompt(jobs: JobListing[]) {
 Below is a JSON array with all open job listings. Each item has the following fields:
   id, title, location, department, description_md.
 
-When answering the user's questions, rely ONLY on this data. Do not hallucinate roles that are not listed. If a question cannot be answered from the listings, politely say you don't have that information.
+When answering the user's questions, rely ONLY on this data. Do not hallucinate roles that are not listed. If a question cannot be answered from the listings, politely say you don't have that information. If the array of jobs is empty, politely say that no roles match the user's filters.
 
-Open job listings:\n\n${JSON.stringify(jobs)}\n\n`;
+The current open job listings are:
+${JSON.stringify(jobs)}`;
+
+}
+
+/**
+ * Builds the system prompt that contains the (optionally filtered) list of job
+ * listings.  This needs to be kept up-to-date and therefore is inserted before
+ * every user message.
+ */
+function buildJobListingsPrompt(jobs: JobListing[]) {
+    return `Open job listings:\n\n${JSON.stringify(jobs)}\n\n`;
 }
 
 /**
@@ -39,8 +87,8 @@ Open job listings:\n\n${JSON.stringify(jobs)}\n\n`;
  */
 function buildFiltersPrompt(locations?: string[], departments?: string[]) {
     const filtersDesc = [
-        locations && locations.length ? `locations: ${locations.join(", ")}` : null,
-        departments && departments.length ? `departments: ${departments.join(", ")}` : null,
+        locations && locations.length && !locations.includes("Any") ? `locations: ${locations.join(", ")}` : null,
+        departments && departments.length && !departments.includes("Any") ? `departments: ${departments.join(", ")}` : null,
     ]
         .filter(Boolean)
         .join("; ") || "none";
@@ -58,6 +106,48 @@ export async function POST(req: Request) {
     // Fetch all open job listings.
     const jobs = await getOpenJobs();
 
+    // ----------------------------------------------
+    // Apply simple fuzzy filtering (case-insensitive
+    // substring match) based on user selections.
+    // ----------------------------------------------
+    // function matchesFilters(job: JobListing) {
+    //     let locationMatch = true;
+    //     let departmentMatch = true;
+
+    //     if (locations && locations.length && !locations.includes("Any")) {
+    //         locationMatch = Boolean(
+    //             locations.some((loc) =>
+    //                 (job.location ?? "").toLowerCase().includes(loc.toLowerCase())
+    //             )
+    //         );
+    //     }
+
+    //     if (departments && departments.length && !departments.includes("Any")) {
+    //         const selectedNonOther = departments.filter((d) => d !== "Other");
+    //         const includesOther = departments.includes("Other");
+
+    //         const jobCat = categorizeDepartment(job.department);
+
+    //         departmentMatch =
+    //             (selectedNonOther.length > 0 && selectedNonOther.includes(jobCat)) ||
+    //             (includesOther && jobCat === "Other");
+    //     }
+
+    //     return locationMatch && departmentMatch;
+    // }
+
+    // const filteredJobs = jobs.filter(matchesFilters);
+
+    // ------------------------------------------------
+    // For debugging: log unique lists (unfiltered) once
+    // ------------------------------------------------
+    if (process.env.NODE_ENV !== "production") {
+        const uniqueLocations = [...new Set(jobs.map((job) => job.location))];
+        const uniqueDepartments = [...new Set(jobs.map((job) => job.department))];
+        console.log(uniqueLocations, "unique locations");
+        console.log(uniqueDepartments, "unique departments");
+    }
+
     // ---------------------------------------------------------------------
     // Build system messages
     // ---------------------------------------------------------------------
@@ -65,6 +155,11 @@ export async function POST(req: Request) {
         role: "system",
         content: buildIdentityPrompt(jobs),
     } as const;
+
+    // const jobSystemMessage = {
+    //     role: "system",
+    //     content: buildJobListingsPrompt(filteredJobs),
+    // } as const;
 
     const filtersSystemMessage = {
         role: "system",
@@ -80,9 +175,10 @@ export async function POST(req: Request) {
 
     for (const msg of messages) {
         if (msg.role === "user") {
-            // Re-append filters message before every user message so the model
-            // always has the latest user preferences.
+            // Re-append filters and job listings before each user turn so the
+            // model always sees the most recent context.
             preparedMessages.push({ ...filtersSystemMessage });
+            // preparedMessages.push({ ...jobSystemMessage });
         }
         preparedMessages.push(msg);
     }
@@ -108,26 +204,72 @@ export async function POST(req: Request) {
         async start(controller) {
             const encoder = new TextEncoder();
 
-            let sentReasoning = false;
+            // Track whether the <details> block has been opened and/or closed to
+            // avoid nested blocks that break the UI.
+            let detailsOpened = false; // true once we've inserted the opening tag
+            let detailsOpen = false;   // true while the <details> block is still open
+            let hasReasoningContent = false; // track if we have any reasoning content
+
+            // More comprehensive cleaning function
+            const cleanThinkingTags = (text: string): string => {
+                return text
+                    // Remove opening details tags (any variation)
+                    .replace(/<details[^>]*>/gi, "")
+                    // Remove closing details tags
+                    .replace(/<\/details>/gi, "")
+                    // Remove complete summary tags with any content
+                    .replace(/<summary[^>]*>.*?<\/summary>/gi, "")
+                    // Remove standalone summary opening tags
+                    .replace(/<summary[^>]*>/gi, "")
+                    // Remove standalone summary closing tags
+                    .replace(/<\/summary>/gi, "")
+                    // Remove any thinking indicators that might leak through
+                    .replace(/💡\s*Thinking\.\.\.?/gi, "")
+                    .replace(/Thinking\.\.\.?/gi, "");
+            };
 
             for await (const part of fullStream) {
-                if (part.type === 'reasoning') {
-                    if (!sentReasoning) {
-                        // Send opening details block with placeholder summary.
+                if (part.type === "reasoning") {
+                    // Clean the reasoning text thoroughly
+                    let cleanedDelta = cleanThinkingTags(part.textDelta);
+
+                    // Only open details block if we haven't already and we have content
+                    if (!detailsOpened && cleanedDelta.trim()) {
                         const detailsHeader = `<details><summary>💡 Thinking...</summary>\n\n`;
                         controller.enqueue(encoder.encode(detailsHeader));
-                        sentReasoning = true;
+                        detailsOpened = true;
+                        detailsOpen = true;
+                        hasReasoningContent = true;
                     }
-                    controller.enqueue(encoder.encode(part.textDelta));
-                } else if (part.type === 'text-delta') {
-                    if (sentReasoning) {
-                        const detailsFooter = `\n\n</details>\n\n`; // close details
+
+                    if (cleanedDelta.trim()) {
+                        controller.enqueue(encoder.encode(cleanedDelta));
+                        hasReasoningContent = true;
+                    }
+                } else if (part.type === "text-delta") {
+                    // Close the <details> block the first time we encounter a
+                    // text-delta after it has been opened and we have reasoning content.
+                    if (detailsOpen && hasReasoningContent) {
+                        const detailsFooter = `\n\n</details>\n\n`;
                         controller.enqueue(encoder.encode(detailsFooter));
-                        sentReasoning = false; // prevent closing multiple times
+                        detailsOpen = false;
                     }
-                    controller.enqueue(encoder.encode(part.textDelta));
+
+                    // Clean any stray thinking tags from text content
+                    let cleanedTextDelta = cleanThinkingTags(part.textDelta);
+
+                    if (cleanedTextDelta.trim()) {
+                        controller.enqueue(encoder.encode(cleanedTextDelta));
+                    }
                 }
             }
+
+            // Ensure details block is closed if it was opened but never closed
+            if (detailsOpen) {
+                const detailsFooter = `\n\n</details>\n\n`;
+                controller.enqueue(encoder.encode(detailsFooter));
+            }
+
             controller.close();
         },
     });
