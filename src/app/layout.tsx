@@ -21,9 +21,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-    width: "device-width",
+    themeColor: "#000000",
     initialScale: 1,
-    // Prevent iOS from zooming content slightly when orientation changes
+    width: "device-width",
     maximumScale: 1,
 };
 
@@ -33,9 +33,9 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className="min-h-screen">
+        <html lang="en" className="h-full">
             <body
-                className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
+                className={`${geistSans.variable} ${geistMono.variable} antialiased h-full flex flex-col`}
             >
                 {/* Header */}
                 <header className="w-full border-b border-black/10 dark:border-white/10 py-3 px-6">
