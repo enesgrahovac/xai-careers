@@ -90,21 +90,25 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
         });
     };
 
-    // After escaping job listing tags in details we need to ensure that self-closing
-    // <joblistingcard /> tags are expanded into an explicit open/close pair.
-    const expandSelfClosingJobListingTags = (text: string): string => {
-        // Replace variants like <joblistingcard .../> or <joblistingcard ... /> with
-        // <joblistingcard ...></joblistingcard>.  We preserve any attributes that
-        // may follow the tag name.
-        return text.replace(/<joblistingcard([^>]*)\/>/gi, "<joblistingcard$1></joblistingcard>");
+    // Convert joblistingcard tags to div elements with data attributes
+    const convertJobListingTagsToDiv = (text: string): string => {
+        // Convert self-closing joblistingcard tags to div elements
+        return text.replace(/<joblistingcard([^>]*)\/>/gi, (match, attributes) => {
+            // Parse attributes and convert them to data-* attributes
+            const convertedAttributes = attributes.replace(/(\w+)=/g, 'data-$1=');
+            return `<div data-job-card="true"${convertedAttributes}></div>`;
+        }).replace(/<joblistingcard([^>]*)>(.*?)<\/joblistingcard>/gi, (match, attributes, content) => {
+            // Convert open/close tags
+            const convertedAttributes = attributes.replace(/(\w+)=/g, 'data-$1=');
+            return `<div data-job-card="true"${convertedAttributes}>${content}</div>`;
+        });
     };
 
     let renderedContent = cleanDuplicateThinkingTags(content);
     // Escape job listing tags that appear inside thinking blocks
     renderedContent = escapeJobListingTagsInDetails(renderedContent);
-    // Expand any self-closing job card tags so the HTML parser treats them as
-    // independent elements rather than nesting them.
-    renderedContent = expandSelfClosingJobListingTags(renderedContent);
+    // Convert joblistingcard tags to div elements with data attributes
+    renderedContent = convertJobListingTagsToDiv(renderedContent);
 
     const summaryRegex = /<details><summary>(.*?)<\/summary>/;
     const match = renderedContent.match(summaryRegex);
@@ -146,32 +150,34 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                                 <ChevronDownIcon className="w-4 h-4 ml-2 transition-transform duration-200 -rotate-90 group-open:rotate-0" />
                             </summary>
                         ),
-                        // Custom HTML tag <joblistingcard> rendered by the assistant.
-                        joblistingcard: ({ ...props }: {
-                            id?: string;
-                            title?: string;
-                            locations?: string;
-                            department?: string;
-                            payrange?: string;
-                            summary?: string;
-                            [key: string]: unknown;
-                        }) => {
-                            // Props arrive as lowercase attribute names.
-                            const { id, title, locations = "", department = "", payrange, summary = "" } = props;
-                            const locArray = typeof locations === "string"
-                                ? [locations.trim()]
-                                : [];
-                            return (
-                                <JobListingCard
-                                    key={String(id ?? title ?? Math.random())}
-                                    id={id ?? ""}
-                                    title={title ?? ""}
-                                    locations={locArray}
-                                    department={department ?? ""}
-                                    payRange={payrange}
-                                    summary={summary ?? ""}
-                                />
-                            );
+                        // Handle custom div elements with data-job-card attribute
+                        div: ({ ...props }: React.HTMLProps<HTMLDivElement> & { [key: string]: unknown }) => {
+                            // Check if this is a job listing card div
+                            if (props['data-job-card'] === 'true') {
+                                // Extract job data with proper type casting
+                                const jobId = String(props['data-id'] || "");
+                                const jobTitle = String(props['data-title'] || "");
+                                const jobLocations = String(props['data-locations'] || "");
+                                const jobDepartment = String(props['data-department'] || "");
+                                const jobPayRange = props['data-payrange'] ? String(props['data-payrange']) : undefined;
+                                const jobSummary = String(props['data-summary'] || "");
+
+                                const locArray = jobLocations.trim() ? [jobLocations.trim()] : [];
+
+                                return (
+                                    <JobListingCard
+                                        key={jobId || jobTitle || String(Math.random())}
+                                        id={jobId}
+                                        title={jobTitle}
+                                        locations={locArray}
+                                        department={jobDepartment}
+                                        payRange={jobPayRange}
+                                        summary={jobSummary}
+                                    />
+                                );
+                            }
+                            // Regular div element
+                            return <div {...props} />;
                         },
                     }}
                     className="rounded-3xl px-4 py-3 max-w-3xl w-full prose dark:prose-invert break-words leading-relaxed min-h-7 text-black dark:text-white"
