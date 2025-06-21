@@ -114,8 +114,15 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         setMessage("");
         setAttachment(null);
 
-        // Focus immediately after sending so user can continue typing
-        textareaRef.current?.focus();
+        // On mobile devices, blur the input to close the keyboard for better UX
+        // On desktop, keep focus for continuous typing
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            textareaRef.current?.blur();
+        } else {
+            // Focus immediately after sending so user can continue typing
+            textareaRef.current?.focus();
+        }
     };
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {

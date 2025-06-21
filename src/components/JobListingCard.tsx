@@ -24,7 +24,7 @@ export default function JobListingCard({
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="block border border-black/10 dark:border-white/15 rounded-xl p-4 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow duration-200"
+            className="my-3 block border border-black/10 dark:border-white/15 rounded-xl p-4 bg-white dark:bg-zinc-900 shadow-sm hover:shadow-md transition-shadow duration-200"
         >
             {/* Title */}
             <h3 className="text-base font-semibold mb-1 text-black dark:text-white">
