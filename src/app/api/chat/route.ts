@@ -86,37 +86,7 @@ export async function POST(req: Request) {
     // Fetch all open job listings.
     const jobs = await getOpenJobs();
 
-    // ----------------------------------------------
-    // Apply simple fuzzy filtering (case-insensitive
-    // substring match) based on user selections.
-    // ----------------------------------------------
-    // function matchesFilters(job: JobListing) {
-    //     let locationMatch = true;
-    //     let departmentMatch = true;
 
-    //     if (locations && locations.length && !locations.includes("Any")) {
-    //         locationMatch = Boolean(
-    //             locations.some((loc) =>
-    //                 (job.location ?? "").toLowerCase().includes(loc.toLowerCase())
-    //             )
-    //         );
-    //     }
-
-    //     if (departments && departments.length && !departments.includes("Any")) {
-    //         const selectedNonOther = departments.filter((d) => d !== "Other");
-    //         const includesOther = departments.includes("Other");
-
-    //         const jobCat = categorizeDepartment(job.department);
-
-    //         departmentMatch =
-    //             (selectedNonOther.length > 0 && selectedNonOther.includes(jobCat)) ||
-    //             (includesOther && jobCat === "Other");
-    //     }
-
-    //     return locationMatch && departmentMatch;
-    // }
-
-    // const filteredJobs = jobs.filter(matchesFilters);
 
     // ---------------------------------------------------------------------
     // Build system messages
