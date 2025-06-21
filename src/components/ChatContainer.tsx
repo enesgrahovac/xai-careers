@@ -16,8 +16,20 @@ export default function ChatContainer() {
         api: "/api/chat",
     });
 
-    const sendMessage = (text: string) => {
-        append({ role: "user", content: text });
+    const sendMessage = (
+        text: string,
+        locations: string[],
+        departments: string[]
+    ) => {
+        append(
+            { role: "user", content: text },
+            {
+                body: {
+                    locations,
+                    departments,
+                },
+            }
+        );
     };
 
     // Auto scroll to bottom

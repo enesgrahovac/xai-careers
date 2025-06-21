@@ -9,7 +9,7 @@ import {
 import Tooltip from "./Tooltip";
 
 interface ChatInputProps {
-    onSend: (message: string) => void;
+    onSend: (message: string, locations: string[], departments: string[]) => void;
     disabled?: boolean;
 }
 
@@ -50,7 +50,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
 
     const send = () => {
         if (disabled || !message.trim()) return;
-        onSend(message.trim());
+        onSend(message.trim(), selectedLocations, selectedDepartments);
         setMessage("");
     };
 
