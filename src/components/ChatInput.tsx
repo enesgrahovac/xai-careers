@@ -31,6 +31,7 @@ async function extractPdfText(file: File): Promise<string> {
     }
 
     const json = (await res.json()) as { text?: string };
+    console.log(json, "json");
     return json.text ?? "";
 }
 
