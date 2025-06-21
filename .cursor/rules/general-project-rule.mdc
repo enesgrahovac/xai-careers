@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+I'm starting a new project here. 
+
+The idea is that I'm applying to xAI but there's so many engineering positions that I need help using AI to narrow down to the top 5 positions that will be the right fit for me based off of my skills, experience, and interests.
+
+I would like to build an app that is a functional conceptual re-design of the https://x.ai/careers/open-roles page. The UI of this will be a close of grok.com with the app being a simple chat interface, which file attachment allowing the user to upload a PDF of their resume/CV, a Locations tab to filter by location, and a Department tab to filter by department. The idea is that it reverses the function of a candidate needing to search through each open position to rather having the candidate type in their interests, skills, and upload their CV to get a ranked result of top matches. The candidate also gets to ask the Grok LLM directly questions to quickly get answers regarding open positions in a chat format.
+
+This project is built in Next.JS, typescript, and hosted on Vercel. For LLM apis, lets stick to using Grok from xAI as our main provider. Let's use the Vercel AI SDK as our api to call LLMs, embeddings, and other related functions. To keep this a lightweight prototype, let's stick to building as much as we can in this stack. Perhaps not even spinning up an external DB if we can use a vercel service instead.
+
+Avoid technical debt at all cost. Prioritize more thinking and work instead of quick fixes that incur technical debt.
+
+Before making coding changes, ensure to propose a plan to be adjusted or approved.
