@@ -21,7 +21,8 @@
         "react-markdown": "^8.0.7",
         "rehype-raw": "^6.1.1",
         "remark-breaks": "^4.0.0",
-        "remark-gfm": "^4.0.0"
+        "remark-gfm": "^4.0.0",
+        "pdfjs-dist": "^4.3.136"
     },
     "devDependencies": {
         "@tailwindcss/postcss": "^4",

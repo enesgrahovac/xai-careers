@@ -78,7 +78,33 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
         return cleaned;
     };
 
+    // NEW HELPER: Escape any <joblistingcard /> occurrences INSIDE <details> blocks so
+    // that markdown renders them as plain text within the thinking section.
+    const escapeJobListingTagsInDetails = (text: string): string => {
+        // This regex finds each <details ...> ... </details> block (non-greedy to stop at the first closing tag)
+        return text.replace(/<details[\s\S]*?<\/details>/gi, (detailsBlock) => {
+            // Inside each details block, escape ANY joblistingcard tag occurrences (self-closing, opening, or closing).
+            return detailsBlock.replace(/<\/?joblistingcard[^>]*>/gi, (tag) => {
+                return tag.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            });
+        });
+    };
+
+    // After escaping job listing tags in details we need to ensure that self-closing
+    // <joblistingcard /> tags are expanded into an explicit open/close pair.
+    const expandSelfClosingJobListingTags = (text: string): string => {
+        // Replace variants like <joblistingcard .../> or <joblistingcard ... /> with
+        // <joblistingcard ...></joblistingcard>.  We preserve any attributes that
+        // may follow the tag name.
+        return text.replace(/<joblistingcard([^>]*)\/>/gi, "<joblistingcard$1></joblistingcard>");
+    };
+
     let renderedContent = cleanDuplicateThinkingTags(content);
+    // Escape job listing tags that appear inside thinking blocks
+    renderedContent = escapeJobListingTagsInDetails(renderedContent);
+    // Expand any self-closing job card tags so the HTML parser treats them as
+    // independent elements rather than nesting them.
+    renderedContent = expandSelfClosingJobListingTags(renderedContent);
 
     const summaryRegex = /<details><summary>(.*?)<\/summary>/;
     const match = renderedContent.match(summaryRegex);
@@ -125,13 +151,11 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                             // Props arrive as lowercase attribute names.
                             const { id, title, locations = "", department = "", payrange, summary = "" } = props;
                             const locArray = typeof locations === "string"
-                                ? (locations as string)
-                                    .split(",")
-                                    .map((l) => l.trim())
-                                    .filter(Boolean)
+                                ? [locations.trim()]
                                 : [];
                             return (
                                 <JobListingCard
+                                    key={id || title}
                                     id={id}
                                     title={title}
                                     locations={locArray}

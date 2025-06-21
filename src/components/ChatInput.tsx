@@ -25,6 +25,9 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
     const locDropdownRef = useRef<HTMLDivElement>(null);
     const deptDropdownRef = useRef<HTMLDivElement>(null);
 
+    // Reference to the hidden file input (PDF resume/CV)
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     // Hard-coded options from official website
     const LOCATIONS = [
         "Any",
@@ -122,6 +125,54 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         };
     }, [locOpen, deptOpen]);
 
+    /**
+     * When the user selects a PDF we extract its text using pdfjs-dist and append
+     * it to whatever is in the message textarea so the user can review / edit
+     * before sending.
+     */
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Basic validation – only PDFs up to ~5 MB for the MVP
+        if (file.type !== "application/pdf") {
+            alert("Please select a PDF file.");
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            alert("PDF is too large (max 5 MB). Please choose a smaller file.");
+            return;
+        }
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore – pdfjs-dist doesn't ship its own type declarations
+            const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf");
+            // The worker file – we point to a CDN to avoid bundling hassle
+            pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+            let extracted = "";
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const { items } = await page.getTextContent();
+                extracted += (items as any[]).map((it) => (it as any).str).join(" ") + "\n";
+            }
+
+            // Append to the current textarea content so the user can review/edit
+            setMessage((prev) => prev + `\n\n${extracted.trim()}`);
+        } catch (err) {
+            console.error("Failed to parse PDF", err);
+            alert("Sorry, we couldn't read that PDF. Try another file.");
+        } finally {
+            // Reset the input so selecting the same file again will trigger onChange
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
     return (
         <form
             onSubmit={handleSubmit}
@@ -151,10 +202,20 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                         type="button"
                         aria-label="Attach file"
                         className="p-1 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                        onClick={() => fileInputRef.current?.click()}
                     >
                         <PaperClipIcon className="h-5 w-5" />
                     </button>
                 </Tooltip>
+
+                {/* Hidden file input for CV upload */}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={handleFileChange}
+                />
 
                 {/* Locations dropdown */}
                 <Tooltip content="Filter roles by location">

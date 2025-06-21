@@ -153,16 +153,6 @@ export async function POST(req: Request) {
 
     // const filteredJobs = jobs.filter(matchesFilters);
 
-    // ------------------------------------------------
-    // For debugging: log unique lists (unfiltered) once
-    // ------------------------------------------------
-    if (process.env.NODE_ENV !== "production") {
-        const uniqueLocations = [...new Set(jobs.map((job) => job.location))];
-        const uniqueDepartments = [...new Set(jobs.map((job) => job.department))];
-        console.log(uniqueLocations, "unique locations");
-        console.log(uniqueDepartments, "unique departments");
-    }
-
     // ---------------------------------------------------------------------
     // Build system messages
     // ---------------------------------------------------------------------
