@@ -11,68 +11,90 @@ interface ChatRequestBody {
     departments?: string[];
 }
 
-function buildSystemPrompt(jobs: JobListing[], locations?: string[], departments?: string[]) {
+// -----------------------------------------------------------------------------
+// Prompt builders
+// -----------------------------------------------------------------------------
+
+/**
+ * Builds the first system prompt that identifies the assistant and provides the
+ * complete set of job listings.  This message is constant across the lifetime
+ * of a conversation.
+ */
+function buildIdentityPrompt(jobs: JobListing[]) {
+    return `You are an AI assistant helping candidates learn about open roles at xAI.
+
+Below is a JSON array with all open job listings. Each item has the following fields:
+  id, title, location, department, description_md.
+
+When answering the user's questions, rely ONLY on this data. Do not hallucinate roles that are not listed. If a question cannot be answered from the listings, politely say you don't have that information.
+
+Open job listings:\n\n${JSON.stringify(jobs)}\n\n`;
+}
+
+/**
+ * Builds the second system prompt that communicates the user's currently
+ * selected locations and/or departments.  This message must be re-appended
+ * before every new user message because the user can change these selections
+ * at any time.
+ */
+function buildFiltersPrompt(locations?: string[], departments?: string[]) {
     const filtersDesc = [
         locations && locations.length ? `locations: ${locations.join(", ")}` : null,
         departments && departments.length ? `departments: ${departments.join(", ")}` : null,
     ]
         .filter(Boolean)
-        .join("; ");
+        .join("; ") || "none";
 
-    return `You are an AI assistant helping candidates learn about open roles at xAI.
+    return `# User's desired locations and departments
 
-Below you will find a JSON array with all open job listings.  Each item has these fields:
-  id, title, location, department, description_md.
+The user's current selections are (${filtersDesc}). If the user has specified filters, focus on roles that match those filters. If the user has not specified filters, focus on roles that are open to all locations and departments.
 
-When answering the user's questions, rely ONLY on this data.  Do not hallucinate roles that are not listed.  If a question cannot be answered from the listings, politely say you don't have that information.
-
-# User's desired locations and departments
-
-These are the user's select locations or departments (${filtersDesc || "none"}). If the user has specified filters, focus on roles that match those filters.
-If the user has not specified filters, focus on roles that are open to all locations and departments.
-Do not use any job listings that do not match the user's desired locations or departments.
-
-Always pay attention to the user's desired locations and departments, which are in the system prompt. The user can change these at any time, but the most recent selected locations and departments are the ones that are stated here in the system prompt.
-
-Open job listings:\n\n${JSON.stringify(jobs)}\n\n`;
+Always pay attention to the user's desired locations and departments. This system message will appear immediately before every user message and therefore contains the most up-to-date preferences.`;
 }
 
 export async function POST(req: Request) {
     const { messages, locations, departments } = (await req.json()) as ChatRequestBody;
 
-    // Fetch job listings and apply basic filtering (exact match) if filters are provided.
-    let jobs = await getOpenJobs();
+    // Fetch all open job listings.
+    const jobs = await getOpenJobs();
 
-    // Filter by locations, if provided
-    if (locations && locations.length) {
-        jobs = jobs.filter((j) => j.location && locations.includes(j.location));
-    }
-
-    // Filter by departments, if provided
-    if (departments && departments.length) {
-        jobs = jobs.filter((j) => j.department && departments.includes(j.department));
-    }
-
-    // Limit to the first 5 jobs to keep prompt size reasonable
-    jobs = jobs.slice(0, 5);
-
-    const systemPrompt = buildSystemPrompt(jobs, locations, departments);
-
-    console.log(systemPrompt, "system prompt");
-
-    const systemMessage = {
+    // ---------------------------------------------------------------------
+    // Build system messages
+    // ---------------------------------------------------------------------
+    const identitySystemMessage = {
         role: "system",
-        content: systemPrompt,
+        content: buildIdentityPrompt(jobs),
     } as const;
+
+    const filtersSystemMessage = {
+        role: "system",
+        content: buildFiltersPrompt(locations, departments),
+    } as const;
+
+    // ---------------------------------------------------------------------
+    // Prepare message list: identity message first, then for *each* user
+    // message insert the current filters system message immediately before it.
+    // ---------------------------------------------------------------------
+
+    const preparedMessages: typeof messages = [identitySystemMessage];
+
+    for (const msg of messages) {
+        if (msg.role === "user") {
+            // Re-append filters message before every user message so the model
+            // always has the latest user preferences.
+            preparedMessages.push({ ...filtersSystemMessage });
+        }
+        preparedMessages.push(msg);
+    }
 
     const result = streamText({
         model: xai("grok-3-mini-fast"),
         providerOptions: {
             xai: {
-                reasoningEffort: 'medium'
-            }
+                reasoningEffort: "medium",
+            },
         },
-        messages: [systemMessage, ...messages],
+        messages: preparedMessages,
     });
 
     // Build a custom ReadableStream that interleaves the model's "reasoning" and
