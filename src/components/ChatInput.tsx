@@ -11,7 +11,12 @@ import {
 import Tooltip from "./Tooltip";
 
 interface ChatInputProps {
-    onSend: (message: string, locations: string[], departments: string[]) => void;
+    onSend: (
+        message: string,
+        locations: string[],
+        departments: string[],
+        cvText?: string
+    ) => void;
     disabled?: boolean;
 }
 
@@ -31,7 +36,6 @@ async function extractPdfText(file: File): Promise<string> {
     }
 
     const json = (await res.json()) as { text?: string };
-    console.log(json, "json");
     return json.text ?? "";
 }
 
@@ -98,19 +102,13 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
     const send = async () => {
         if (disabled || !message.trim()) return;
 
-        let finalMessage = message.trim();
-
+        let cvText: string | undefined;
         if (attachment) {
-            console.log(attachment, "attachment");
-            // Attempt to extract text from the attached PDF on the server.
-            const cvText = await extractPdfText(attachment);
-            console.log(cvText, "cvText");
-            if (cvText) {
-                finalMessage += `\n\nHere's the contents of my CV (extracted automatically):\n${cvText}`;
-            }
+            // Extract text from the attached PDF on the server.
+            cvText = await extractPdfText(attachment);
         }
 
-        onSend(finalMessage, selectedLocations, selectedDepartments);
+        onSend(message.trim(), selectedLocations, selectedDepartments, cvText);
 
         // Reset UI state
         setMessage("");

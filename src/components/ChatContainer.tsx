@@ -23,7 +23,8 @@ export default function ChatContainer() {
     const sendMessage = (
         text: string,
         locations: string[],
-        departments: string[]
+        departments: string[],
+        cvText?: string
     ) => {
         append(
             { role: "user", content: text },
@@ -31,6 +32,7 @@ export default function ChatContainer() {
                 body: {
                     locations,
                     departments,
+                    cvText,
                 },
             }
         );
@@ -54,7 +56,7 @@ export default function ChatContainer() {
             // Jump instead of smooth-scroll to avoid piling up animations.
             container.scrollTop = container.scrollHeight;
         }
-
+        console.log(messages, "messages");
     }, [messages]);
 
     const hasMessages = messages.length > 0;

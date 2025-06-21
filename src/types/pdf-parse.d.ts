@@ -5,12 +5,15 @@ declare module "pdf-parse" {
         text: string;
         numpages: number;
         numrender: number;
-        info: any;
-        metadata: any;
+        info: Record<string, unknown>;
+        metadata: unknown;
         version: string;
     }
 
-    function pdfParse(dataBuffer: Buffer, options?: any): Promise<PDFParseResult>;
+    function pdfParse(
+        dataBuffer: Buffer,
+        options?: Record<string, unknown>
+    ): Promise<PDFParseResult>;
 
     export default pdfParse;
 } 

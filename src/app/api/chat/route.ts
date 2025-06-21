@@ -5,14 +5,8 @@ import { getOpenJobs, JobListing } from "@/lib/jobs";
 export const runtime = "edge";
 export const maxDuration = 30;
 
-interface ChatRequestBody {
-    messages: any[];
-    locations?: string[];
-    departments?: string[];
-}
-
 // -----------------------------------------------------------------------------
-// Helpers
+// Types
 // -----------------------------------------------------------------------------
 
 type DepartmentCategory =
@@ -21,32 +15,18 @@ type DepartmentCategory =
     | "Data Center Operations"
     | "Other";
 
-/**
- * Maps arbitrary department names coming from Greenhouse to one of the
- * top-level categories used in the UI.
- */
-function categorizeDepartment(dep: string | null): DepartmentCategory {
-    if (!dep) return "Other";
+type ChatMessage = {
+    role: "system" | "user" | "assistant";
+    content: string;
+};
 
-    const d = dep.toLowerCase();
-
-    // Engineering / Research / Product bucket
-    if (/(engineering|research|product|infrastructure|software)/.test(d)) {
-        return "Engineering, Research & Product";
-    }
-
-    // Human Data bucket
-    if (d.includes("human data")) {
-        return "Human Data";
-    }
-
-    // Data Center Operations bucket (include IT/Operations keywords)
-    if (/(data\s*center|operations|information technology|it)/.test(d)) {
-        return "Data Center Operations";
-    }
-
-    return "Other";
+interface ChatRequestBody {
+    messages: ChatMessage[];
+    locations?: string[];
+    departments?: string[];
+    cvText?: string;
 }
+
 
 // -----------------------------------------------------------------------------
 // Prompt builders
@@ -86,15 +66,6 @@ ${JSON.stringify(jobs)}`;
 }
 
 /**
- * Builds the system prompt that contains the (optionally filtered) list of job
- * listings.  This needs to be kept up-to-date and therefore is inserted before
- * every user message.
- */
-function buildJobListingsPrompt(jobs: JobListing[]) {
-    return `Open job listings:\n\n${JSON.stringify(jobs)}\n\n`;
-}
-
-/**
  * Builds the second system prompt that communicates the user's currently
  * selected locations and/or departments.  This message must be re-appended
  * before every new user message because the user can change these selections
@@ -116,7 +87,7 @@ Always pay attention to the user's desired locations and departments. This syste
 }
 
 export async function POST(req: Request) {
-    const { messages, locations, departments } = (await req.json()) as ChatRequestBody;
+    const { messages, locations, departments, cvText } = (await req.json()) as ChatRequestBody;
 
     // Fetch all open job listings.
     const jobs = await getOpenJobs();
@@ -172,11 +143,21 @@ export async function POST(req: Request) {
     } as const;
 
     // ---------------------------------------------------------------------
-    // Prepare message list: identity message first, then for *each* user
-    // message insert the current filters system message immediately before it.
+    // Prepare message list: identity message first.  If the user has supplied
+    // a CV, add it as a single system message so the model can use it for
+    // ranking/search but it never appears in the assistant's visible output.
+    // Then for *each* user message insert the filters system message right
+    // before it.
     // ---------------------------------------------------------------------
 
-    const preparedMessages: typeof messages = [identitySystemMessage];
+    const preparedMessages: ChatMessage[] = [identitySystemMessage];
+
+    if (cvText && cvText.trim()) {
+        preparedMessages.push({
+            role: "system",
+            content: `# User CV (confidential – do not reveal)\n\n${cvText}`,
+        });
+    }
 
     for (const msg of messages) {
         if (msg.role === "user") {
@@ -192,7 +173,7 @@ export async function POST(req: Request) {
         model: xai("grok-3-mini"),
         providerOptions: {
             xai: {
-                reasoningEffort: "low",
+                reasoningEffort: "high",
             },
         },
         messages: preparedMessages,
@@ -241,7 +222,7 @@ export async function POST(req: Request) {
             for await (const part of fullStream) {
                 if (part.type === "reasoning") {
                     // Clean the reasoning text thoroughly, also stripping job card tags
-                    let cleanedDelta = cleanReasoningTags(part.textDelta);
+                    const cleanedDelta = cleanReasoningTags(part.textDelta);
 
                     // Only open details block if we haven't already and we have content
                     if (!detailsOpened && cleanedDelta.trim()) {
@@ -266,7 +247,7 @@ export async function POST(req: Request) {
                     }
 
                     // Clean any stray thinking tags from text content (do NOT remove job cards)
-                    let cleanedTextDelta = cleanTextTags(part.textDelta);
+                    const cleanedTextDelta = cleanTextTags(part.textDelta);
 
                     if (cleanedTextDelta.trim()) {
                         controller.enqueue(encoder.encode(cleanedTextDelta));

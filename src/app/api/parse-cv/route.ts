@@ -22,8 +22,8 @@ export async function POST(req: Request) {
         const data = await pdfParse(buffer);
         // pdf-parse returns text with whitespace/newlines preserved.
         return Response.json({ text: data.text });
-    } catch (err: any) {
-        console.error("Failed to parse PDF", err);
+    } catch (err: unknown) {
+        console.error("Failed to parse PDF", err as Error);
         return new Response("Failed to parse PDF", { status: 500 });
     }
 } 

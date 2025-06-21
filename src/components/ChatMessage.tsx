@@ -126,8 +126,8 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                     rehypePlugins={[rehypeRaw]}
                     skipHtml={false}
                     components={{
-                        p: ({ node, ...props }) => <p {...props} className="my-3 leading-relaxed" />,
-                        details: ({ node, ...props }) => (
+                        p: ({ node: _node, ...props }) => <p {...props} className="my-3 leading-relaxed" />,
+                        details: ({ node: _node, ...props }) => (
                             <details
                                 {...props}
                                 open={isThinking}
@@ -136,7 +136,7 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                                 {props.children}
                             </details>
                         ),
-                        summary: ({ node, ...props }) => (
+                        summary: ({ node: _node, ...props }) => (
                             <summary
                                 {...props}
                                 className="flex items-center text-gray-500 dark:text-gray-400 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden"
@@ -147,7 +147,15 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                             </summary>
                         ),
                         // Custom HTML tag <joblistingcard> rendered by the assistant.
-                        joblistingcard: ({ node, ...props }: any) => {
+                        joblistingcard: ({ node: _node, ...props }: {
+                            id?: string;
+                            title?: string;
+                            locations?: string;
+                            department?: string;
+                            payrange?: string;
+                            summary?: string;
+                            [key: string]: unknown;
+                        }) => {
                             // Props arrive as lowercase attribute names.
                             const { id, title, locations = "", department = "", payrange, summary = "" } = props;
                             const locArray = typeof locations === "string"
@@ -155,13 +163,13 @@ export default function ChatMessage({ role, content, isThinking = false }: ChatM
                                 : [];
                             return (
                                 <JobListingCard
-                                    key={id || title}
-                                    id={id}
-                                    title={title}
+                                    key={String(id ?? title ?? Math.random())}
+                                    id={id ?? ""}
+                                    title={title ?? ""}
                                     locations={locArray}
-                                    department={department}
+                                    department={department ?? ""}
                                     payRange={payrange}
-                                    summary={summary}
+                                    summary={summary ?? ""}
                                 />
                             );
                         },
