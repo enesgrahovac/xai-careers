@@ -101,8 +101,10 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         let finalMessage = message.trim();
 
         if (attachment) {
+            console.log(attachment, "attachment");
             // Attempt to extract text from the attached PDF on the server.
             const cvText = await extractPdfText(attachment);
+            console.log(cvText, "cvText");
             if (cvText) {
                 finalMessage += `\n\nHere's the contents of my CV (extracted automatically):\n${cvText}`;
             }
