@@ -36,17 +36,7 @@ export async function POST(req: Request) {
 
     // Fetch job listings and apply basic filtering (exact match) if filters are provided.
     let jobs = await getOpenJobs();
-
-    // if (locations && locations.length > 0) {
-    //     const locSet = new Set(locations.map((l) => l.toLowerCase()));
-    //     jobs = jobs.filter((j) => j.location && locSet.has(j.location.toLowerCase()));
-    // }
-
-    // if (departments && departments.length > 0) {
-    //     const deptSet = new Set(departments.map((d) => d.toLowerCase()));
-    //     jobs = jobs.filter((j) => j.department && deptSet.has(j.department.toLowerCase()));
-    // }
-
+    jobs = jobs.slice(0, 5);
 
     const systemPrompt = buildSystemPrompt(jobs, locations, departments);
 
@@ -58,7 +48,7 @@ export async function POST(req: Request) {
     } as const;
 
     const result = streamText({
-        model: xai("grok-3-mini"),
+        model: xai("grok-3-mini-beta"),
         providerOptions: {
             xai: {
                 reasoningEffort: 'low'
@@ -67,5 +57,45 @@ export async function POST(req: Request) {
         messages: [systemMessage, ...messages],
     });
 
-    return result.toDataStreamResponse();
+    // Build a custom ReadableStream that interleaves the model's "reasoning" and
+    // "text-delta" parts so the client can display a collapsible "Thought" block
+    // followed by the final assistant answer, while still taking advantage of
+    // streaming for the answer tokens.
+
+    const { fullStream } = result;
+
+    const stream = new ReadableStream({
+        async start(controller) {
+            const encoder = new TextEncoder();
+
+            let reasoningText = '';
+            const reasoningStartedAt = Date.now();
+            let sentReasoning = false;
+
+            for await (const part of fullStream) {
+                if (part.type === 'reasoning') {
+                    // Buffer reasoning tokens – we will emit them all together once reasoning ends
+                    reasoningText += part.textDelta;
+                } else if (part.type === 'text-delta') {
+                    // When the first answer token arrives, flush the reasoning block (if any)
+                    if (!sentReasoning && reasoningText) {
+                        const thinkingTimeSec = ((Date.now() - reasoningStartedAt) / 1000).toFixed(1);
+                        const detailsHeader = `<details><summary>💡 Thought for ${thinkingTimeSec}s</summary>\n\n`;
+                        const detailsFooter = `\n\n</details>\n\n`;
+                        controller.enqueue(encoder.encode(detailsHeader + reasoningText + detailsFooter));
+                        sentReasoning = true;
+                    }
+                    // Stream answer tokens straight through
+                    controller.enqueue(encoder.encode(part.textDelta));
+                }
+            }
+            controller.close();
+        },
+    });
+
+    return new Response(stream, {
+        headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+        },
+    });
 } 

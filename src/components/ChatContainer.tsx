@@ -14,6 +14,7 @@ export default function ChatContainer() {
         isLoading,
     } = useChat({
         api: "/api/chat",
+        streamProtocol: "text",
     });
 
     const sendMessage = (
@@ -35,6 +36,7 @@ export default function ChatContainer() {
     // Auto scroll to bottom
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+        console.log(messages, "messages");
     }, [messages]);
 
     const hasMessages = messages.length > 0;
