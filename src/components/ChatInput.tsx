@@ -19,6 +19,10 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
     const [deptOpen, setDeptOpen] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    // Add refs for dropdown containers
+    const locDropdownRef = useRef<HTMLDivElement>(null);
+    const deptDropdownRef = useRef<HTMLDivElement>(null);
+
     const LOCATIONS = ["Palo Alto", "San Francisco", "New York", "Remote"] as const;
     const DEPARTMENTS = [
         "Engineering",
@@ -75,6 +79,24 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
     }, [message]);
 
+    // Close dropdowns when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (locOpen && locDropdownRef.current && !locDropdownRef.current.contains(target)) {
+                setLocOpen(false);
+            }
+            if (deptOpen && deptDropdownRef.current && !deptDropdownRef.current.contains(target)) {
+                setDeptOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [locOpen, deptOpen]);
+
     return (
         <form
             onSubmit={handleSubmit}
@@ -112,7 +134,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
 
                 {/* Locations dropdown */}
                 <Tooltip content="Filter roles by location">
-                    <div className="relative">
+                    <div className="relative" ref={locDropdownRef}>
                         <button
                             type="button"
                             onClick={() => {
@@ -146,7 +168,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
 
                 {/* Departments dropdown */}
                 <Tooltip content="Filter roles by department">
-                    <div className="relative">
+                    <div className="relative" ref={deptDropdownRef}>
                         <button
                             type="button"
                             onClick={() => {
