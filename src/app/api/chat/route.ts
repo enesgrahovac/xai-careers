@@ -26,7 +26,13 @@ Below you will find a JSON array with all open job listings.  Each item has thes
 
 When answering the user's questions, rely ONLY on this data.  Do not hallucinate roles that are not listed.  If a question cannot be answered from the listings, politely say you don't have that information.
 
-If the user has specified filters (${filtersDesc || "none"}), focus on roles that match those filters.
+# User's desired locations and departments
+
+These are the user's select locations or departments (${filtersDesc || "none"}). If the user has specified filters, focus on roles that match those filters.
+If the user has not specified filters, focus on roles that are open to all locations and departments.
+Do not use any job listings that do not match the user's desired locations or departments.
+
+Always pay attention to the user's desired locations and departments, which are in the system prompt. The user can change these at any time, but the most recent selected locations and departments are the ones that are stated here in the system prompt.
 
 Open job listings:\n\n${JSON.stringify(jobs)}\n\n`;
 }
@@ -36,6 +42,18 @@ export async function POST(req: Request) {
 
     // Fetch job listings and apply basic filtering (exact match) if filters are provided.
     let jobs = await getOpenJobs();
+
+    // Filter by locations, if provided
+    if (locations && locations.length) {
+        jobs = jobs.filter((j) => j.location && locations.includes(j.location));
+    }
+
+    // Filter by departments, if provided
+    if (departments && departments.length) {
+        jobs = jobs.filter((j) => j.department && departments.includes(j.department));
+    }
+
+    // Limit to the first 5 jobs to keep prompt size reasonable
     jobs = jobs.slice(0, 5);
 
     const systemPrompt = buildSystemPrompt(jobs, locations, departments);
@@ -48,10 +66,10 @@ export async function POST(req: Request) {
     } as const;
 
     const result = streamText({
-        model: xai("grok-3-mini-beta"),
+        model: xai("grok-3-mini-fast"),
         providerOptions: {
             xai: {
-                reasoningEffort: 'low'
+                reasoningEffort: 'medium'
             }
         },
         messages: [systemMessage, ...messages],
@@ -68,24 +86,23 @@ export async function POST(req: Request) {
         async start(controller) {
             const encoder = new TextEncoder();
 
-            let reasoningText = '';
-            const reasoningStartedAt = Date.now();
             let sentReasoning = false;
 
             for await (const part of fullStream) {
                 if (part.type === 'reasoning') {
-                    // Buffer reasoning tokens – we will emit them all together once reasoning ends
-                    reasoningText += part.textDelta;
-                } else if (part.type === 'text-delta') {
-                    // When the first answer token arrives, flush the reasoning block (if any)
-                    if (!sentReasoning && reasoningText) {
-                        const thinkingTimeSec = ((Date.now() - reasoningStartedAt) / 1000).toFixed(1);
-                        const detailsHeader = `<details><summary>💡 Thought for ${thinkingTimeSec}s</summary>\n\n`;
-                        const detailsFooter = `\n\n</details>\n\n`;
-                        controller.enqueue(encoder.encode(detailsHeader + reasoningText + detailsFooter));
+                    if (!sentReasoning) {
+                        // Send opening details block with placeholder summary.
+                        const detailsHeader = `<details><summary>💡 Thinking...</summary>\n\n`;
+                        controller.enqueue(encoder.encode(detailsHeader));
                         sentReasoning = true;
                     }
-                    // Stream answer tokens straight through
+                    controller.enqueue(encoder.encode(part.textDelta));
+                } else if (part.type === 'text-delta') {
+                    if (sentReasoning) {
+                        const detailsFooter = `\n\n</details>\n\n`; // close details
+                        controller.enqueue(encoder.encode(detailsFooter));
+                        sentReasoning = false; // prevent closing multiple times
+                    }
                     controller.enqueue(encoder.encode(part.textDelta));
                 }
             }

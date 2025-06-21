@@ -52,8 +52,13 @@ export default function ChatContainer() {
             {hasMessages && (
                 <div ref={scrollRef} className="flex-1 overflow-y-auto">
                     <div className="p-6 space-y-6 max-w-3xl mx-auto">
-                        {messages.map((m: AIMessage) => (
-                            <ChatMessage key={m.id} role={m.role as "user" | "assistant"} content={m.content ?? ""} />
+                        {messages.map((m: AIMessage, idx) => (
+                            <ChatMessage
+                                key={m.id}
+                                role={m.role as "user" | "assistant"}
+                                content={m.content ?? ""}
+                                isThinking={isLoading && idx === messages.length - 1 && m.role === "assistant"}
+                            />
                         ))}
                     </div>
                 </div>
