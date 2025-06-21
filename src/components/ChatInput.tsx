@@ -15,6 +15,25 @@ interface ChatInputProps {
     disabled?: boolean;
 }
 
+// Helper to upload a PDF to the server and get back its extracted text.
+async function extractPdfText(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/parse-cv", {
+        method: "POST",
+        body: formData,
+    });
+
+    if (!res.ok) {
+        console.error("Failed to parse CV PDF");
+        return "";
+    }
+
+    const json = (await res.json()) as { text?: string };
+    return json.text ?? "";
+}
+
 export default function ChatInput({ onSend, disabled = false }: ChatInputProps) {
     const [message, setMessage] = useState("");
     const [locOpen, setLocOpen] = useState(false);
@@ -24,9 +43,6 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
     // Add refs for dropdown containers
     const locDropdownRef = useRef<HTMLDivElement>(null);
     const deptDropdownRef = useRef<HTMLDivElement>(null);
-
-    // Reference to the hidden file input (PDF resume/CV)
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Hard-coded options from official website
     const LOCATIONS = [
@@ -49,6 +65,10 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
 
     const [selectedLocations, setSelectedLocations] = useState<string[]>(["Any"]);
     const [selectedDepartments, setSelectedDepartments] = useState<string[]>(["Any"]);
+
+    const [attachment, setAttachment] = useState<File | null>(null);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const toggleLocation = (loc: string) => {
         setSelectedLocations((prev) => {
@@ -74,10 +94,25 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         });
     };
 
-    const send = () => {
+    const send = async () => {
         if (disabled || !message.trim()) return;
-        onSend(message.trim(), selectedLocations, selectedDepartments);
+
+        let finalMessage = message.trim();
+
+        if (attachment) {
+            // Attempt to extract text from the attached PDF on the server.
+            const cvText = await extractPdfText(attachment);
+            if (cvText) {
+                finalMessage += `\n\nHere's the contents of my CV (extracted automatically):\n${cvText}`;
+            }
+        }
+
+        onSend(finalMessage, selectedLocations, selectedDepartments);
+
+        // Reset UI state
         setMessage("");
+        setAttachment(null);
+
         // Focus immediately after sending so user can continue typing
         textareaRef.current?.focus();
     };
@@ -125,54 +160,6 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
         };
     }, [locOpen, deptOpen]);
 
-    /**
-     * When the user selects a PDF we extract its text using pdfjs-dist and append
-     * it to whatever is in the message textarea so the user can review / edit
-     * before sending.
-     */
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // Basic validation – only PDFs up to ~5 MB for the MVP
-        if (file.type !== "application/pdf") {
-            alert("Please select a PDF file.");
-            return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-            alert("PDF is too large (max 5 MB). Please choose a smaller file.");
-            return;
-        }
-
-        try {
-            const arrayBuffer = await file.arrayBuffer();
-
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore – pdfjs-dist doesn't ship its own type declarations
-            const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf");
-            // The worker file – we point to a CDN to avoid bundling hassle
-            pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-
-            const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-
-            let extracted = "";
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const { items } = await page.getTextContent();
-                extracted += (items as any[]).map((it) => (it as any).str).join(" ") + "\n";
-            }
-
-            // Append to the current textarea content so the user can review/edit
-            setMessage((prev) => prev + `\n\n${extracted.trim()}`);
-        } catch (err) {
-            console.error("Failed to parse PDF", err);
-            alert("Sorry, we couldn't read that PDF. Try another file.");
-        } finally {
-            // Reset the input so selecting the same file again will trigger onChange
-            if (fileInputRef.current) fileInputRef.current.value = "";
-        }
-    };
-
     return (
         <form
             onSubmit={handleSubmit}
@@ -207,15 +194,24 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                         <PaperClipIcon className="h-5 w-5" />
                     </button>
                 </Tooltip>
-
-                {/* Hidden file input for CV upload */}
+                {/* Hidden file input */}
                 <input
                     ref={fileInputRef}
                     type="file"
                     accept="application/pdf"
-                    className="hidden"
-                    onChange={handleFileChange}
+                    hidden
+                    onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                            setAttachment(file);
+                        }
+                    }}
                 />
+                {attachment && (
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate max-w-[120px]">
+                        {attachment.name}
+                    </span>
+                )}
 
                 {/* Locations dropdown */}
                 <Tooltip content="Filter roles by location">
@@ -291,7 +287,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                 <div className="flex-1" />
 
                 {/* Model label */}
-                <Tooltip content="The smartest AI model">
+                <Tooltip content="Smart AI model with reasoning capabilities">
                     <span className="text-xs font-medium text-zinc-500 mr-2 hidden sm:inline cursor-default">Grok 3 mini</span>
                 </Tooltip>
 
