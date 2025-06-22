@@ -1,13 +1,68 @@
 import * as cheerio from 'cheerio';
 
+function htmlToText(html: string): string {
+    const $ = cheerio.load(html);
+
+    // Remove unwanted elements
+    $('script, style, noscript').remove();
+
+    // Replace headings with proper formatting
+    $('h1, h2, h3, h4, h5, h6').each(function () {
+        const text = $(this).text().trim();
+        if (text) {
+            $(this).replaceWith('\n\n' + text + '\n\n');
+        }
+    });
+
+    // Replace paragraphs and divs with line breaks
+    $('p, div').each(function () {
+        const text = $(this).text().trim();
+        if (text) {
+            $(this).replaceWith('\n\n' + text + '\n\n');
+        }
+    });
+
+    // Replace line breaks
+    $('br').replaceWith('\n');
+
+    // Handle list items
+    $('li').each(function () {
+        const text = $(this).text().trim();
+        if (text) {
+            $(this).replaceWith('\n• ' + text);
+        }
+    });
+
+    // Handle lists
+    $('ul, ol').each(function () {
+        $(this).after('\n');
+    });
+
+    // Get the text content
+    let text = $.text();
+
+    // Clean up whitespace and formatting
+    return text
+        .replace(/\s+/g, ' ')           // Replace multiple whitespace with single space
+        .replace(/\n\s+/g, '\n')        // Remove spaces after newlines
+        .replace(/\s+\n/g, '\n')        // Remove spaces before newlines
+        .replace(/\n{3,}/g, '\n\n')     // Replace 3+ newlines with 2
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .join('\n')
+        .trim();
+}
+
 export function extractCoreDescription(html: string): string {
-    // Convert HTML to plain text
+    // Load HTML and remove unwanted elements
     const $ = cheerio.load(html);
 
     // Strip the generic intro block
     $('div.content-intro').remove();
 
-    const text = $.text();
+    // Convert the cleaned HTML to properly formatted plain text
+    const text = htmlToText($.html() || '');
 
     // If an 'About xAI' header exists, move start to the next header (h3/h2)
     const aboutHeader = $('h3,h2').filter((_, el) => $(el).text().toLowerCase().includes('about xai')).first();

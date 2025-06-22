@@ -32,12 +32,24 @@ interface ChatRequestBody {
  * of a conversation.
  */
 function buildIdentityPrompt(jobs: JobListing[]) {
+    // Format jobs in a more structured way for better LLM parsing
+    const formattedJobs = jobs.map((job, index) => {
+        return `## Job ${index + 1}: ${job.title}
+**ID:** ${job.id}
+**Department:** ${job.department || 'Not specified'}
+**Location:** ${job.location || 'Not specified'}
+
+**Job Description:**
+${job.description_md || 'No description available'}
+
+---`;
+    }).join('\n\n');
+
     return `You are an AI assistant helping candidates learn about open roles at xAI.
 
-Below is a JSON array with all open job listings. Each item has the following fields:
-  id, title, location, department, description_md.
+Below are all the current open job listings at xAI. Each job is clearly separated and numbered for easy reference.
 
-When answering the user's questions, rely ONLY on this data. Do not hallucinate roles that are not listed. If a question cannot be answered from the listings, politely say you don't have that information. If the array of jobs is empty, politely say that no roles match the user's filters.
+When answering the user's questions, rely ONLY on this data. Do not hallucinate roles that are not listed. If a question cannot be answered from the listings, politely say you don't have that information. If there are no jobs listed, politely say that no roles match the user's filters.
 
 # How to present recommended jobs
 
@@ -55,8 +67,9 @@ When answering the user's questions, rely ONLY on this data. Do not hallucinate 
 
 • **Never** include <joblistingcard> tags in your internal "reasoning" (chain-of-thought) output. Only include them in the final answer.
 
-The current open job listings are:
-${JSON.stringify(jobs)}`;
+# Current Open Positions at xAI
+
+${formattedJobs}`;
 }
 
 /**
@@ -86,8 +99,6 @@ export async function POST(req: Request) {
     // Fetch all open job listings.
     const jobs = await getOpenJobs();
 
-
-
     // ---------------------------------------------------------------------
     // Build system messages
     // ---------------------------------------------------------------------
@@ -95,6 +106,8 @@ export async function POST(req: Request) {
         role: "system",
         content: buildIdentityPrompt(jobs),
     } as const;
+
+    // console.log(identitySystemMessage, "identitySystemMessage");
 
     // const jobSystemMessage = {
     //     role: "system",
