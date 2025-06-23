@@ -39,7 +39,7 @@ function htmlToText(html: string): string {
     });
 
     // Get the text content
-    let text = $.text();
+    const text = $.text();
 
     // Clean up whitespace and formatting
     return text
