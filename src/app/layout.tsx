@@ -38,10 +38,20 @@ export default function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased h-full flex flex-col`}
             >
                 {/* Header */}
-                <header className="w-full border-b border-black/10 dark:border-white/10 py-3 px-6">
-                    <h1 className="text-lg font-semibold">
-                        xAI Careers <span className="opacity-60">[concept]</span>
-                    </h1>
+                <header className="w-full border-b border-black/10 dark:border-white/10 py-4 px-6">
+                    <div className="flex justify-between items-end">
+                        <h1 className="text-lg font-semibold leading-none">
+                            xAI Careers <span className="opacity-60">[concept]</span>
+                        </h1>
+                        <a 
+                            href="https://enesxgrahovac.com" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors leading-none"
+                        >
+                            Enes, 2025
+                        </a>
+                    </div>
                 </header>
 
                 {/* Page content */}
