@@ -1,6 +1,6 @@
 # xAI Careers Assistant 🤖
 
-**Live Demo:** [https://xai-careers.vercel.app/](https://xai-careers.vercel.app/)
+**Live Demo:** <a href="https://xai-careers.vercel.app/" target="_blank">https://xai-careers.vercel.app/</a>
 
 An AI-powered career assistant that helps you discover the perfect job opportunities at xAI by analyzing your resume and providing personalized recommendations with intelligent explanations.
 
