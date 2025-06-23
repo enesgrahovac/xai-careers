@@ -86,9 +86,8 @@ export default function ChatContainer() {
         departments: string[],
         cvText?: string
     ) => {
-        // Hide starter prompts and welcome message once user sends a message
+        // Hide starter prompts once user sends a message, but keep welcome message visible
         setShowStarterPrompts(false);
-        setShowWelcomeMessage(false);
         
         append(
             { role: "user", content: text },
