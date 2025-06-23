@@ -5,7 +5,7 @@ import {
     ChevronDownIcon,
     ArrowUpIcon,
     CheckIcon,
-    GlobeAltIcon,
+    MapPinIcon,
     Squares2X2Icon
 } from "@heroicons/react/24/outline";
 import Tooltip from "./Tooltip";
@@ -232,7 +232,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                             }}
                             className="group flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-3xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/10 dark:border-white/15"
                         >
-                            <GlobeAltIcon className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
+                            <MapPinIcon className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
                             <span className="hidden sm:inline">Location</span>
                             <ChevronDownIcon className="h-4 w-4" />
                         </button>
@@ -268,7 +268,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                             className="group flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-3xl hover:bg-black/5 dark:hover:bg-white/10 border border-black/10 dark:border-white/15"
                         >
                             <Squares2X2Icon className="h-4 w-4 text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-200" />
-                            <span className="hidden sm:inline">Department</span>
+                            <span className="sm:inline">Role</span>
                             <ChevronDownIcon className="h-4 w-4" />
                         </button>
                         {deptOpen && (
@@ -278,7 +278,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
                                         key={dept}
                                         type="button"
                                         onClick={() => toggleDepartment(dept)}
-                                        className="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-black/5 dark:hover:bg-white/10 rounded"
+                                        className="flex w-full items-start px-3 py-2 text-left hover:bg-black/5 dark:hover:bg-white/10 rounded"
                                     >
                                         <CheckIcon
                                             className={`h-4 w-4 text-black dark:text-white ${selectedDepartments.includes(dept) ? "" : "opacity-0"}`}
@@ -296,7 +296,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
 
                 {/* Model label */}
                 <Tooltip content="Smart AI model with reasoning capabilities">
-                    <span className="text-xs font-medium text-zinc-500 mr-1 sm:inline cursor-default">Grok 3 mini</span>
+                    <span className="text-xs font-medium text-zinc-500 mr-1 sm:inline cursor-default">Grok 3</span>
                 </Tooltip>
 
                 {/* Send */}
