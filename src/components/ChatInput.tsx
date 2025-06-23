@@ -296,7 +296,7 @@ export default function ChatInput({ onSend, disabled = false }: ChatInputProps) 
 
                 {/* Model label */}
                 <Tooltip content="Smart AI model with reasoning capabilities">
-                    <span className="text-xs font-medium text-zinc-500 mr-2 hidden sm:inline cursor-default">Grok 3 mini</span>
+                    <span className="text-xs font-medium text-zinc-500 mr-1 sm:inline cursor-default">Grok 3 mini</span>
                 </Tooltip>
 
                 {/* Send */}

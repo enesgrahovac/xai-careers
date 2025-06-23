@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import ChatInput from "@/components/ChatInput";
 import ChatMessage from "@/components/ChatMessage";
 import { useChat, type Message as AIMessage } from "@ai-sdk/react";
@@ -11,6 +11,40 @@ export default function ChatContainer() {
     // to keep it in view than continuously animating the entire container.
     const bottomRef = useRef<HTMLDivElement>(null);
 
+    // State for welcome message streaming effect
+    const [welcomeContent, setWelcomeContent] = useState("");
+    const [isStreamingWelcome, setIsStreamingWelcome] = useState(false);
+    const [showStarterPrompts, setShowStarterPrompts] = useState(false);
+    const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+
+    const fullWelcomeMessage = "Hi, I'm the xAI careers assistant. I'll help match you to your best fit at xAI. Please feel free to ask me any question or attach your CV and I will help recommend you top positions that match your experience and interests.";
+
+    const allStarterPrompts = [
+        "What engineering roles are available at xAI?",
+        "Show me remote positions at xAI",
+        "What roles would be good for someone with machine learning experience?",
+        "Tell me about the company culture at xAI",
+        "What data science positions does xAI have open?",
+        "Are there any entry-level opportunities at xAI?",
+        "What roles are available in San Francisco?",
+        "Show me positions in the Research & Product department",
+        "What backend engineering roles does xAI offer?",
+        "Are there any AI/ML research positions available?",
+        "What opportunities exist for senior engineers?",
+        "Tell me about xAI's infrastructure and DevOps roles"
+    ];
+
+    // Function to randomly select starter prompts
+    const getRandomStarterPrompts = () => {
+        const shuffled = [...allStarterPrompts].sort(() => 0.5 - Math.random());
+        // Show 3 on mobile, 4 on desktop
+        const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+        const count = isMobile ? 3 : 4;
+        return shuffled.slice(0, count);
+    };
+
+    const [starterPrompts] = useState(() => getRandomStarterPrompts());
+
     const {
         messages,
         append,
@@ -20,12 +54,42 @@ export default function ChatContainer() {
         streamProtocol: "text",
     });
 
+    // Initialize with welcome message on first load
+    useEffect(() => {
+        // Only run this once on mount
+        setShowWelcomeMessage(true);
+        setIsStreamingWelcome(true);
+        
+        // Start streaming the welcome message
+        let currentIndex = 0;
+        const streamInterval = setInterval(() => {
+            if (currentIndex < fullWelcomeMessage.length) {
+                const partialMessage = fullWelcomeMessage.slice(0, currentIndex + 1);
+                setWelcomeContent(partialMessage);
+                currentIndex++;
+            } else {
+                clearInterval(streamInterval);
+                setIsStreamingWelcome(false);
+                // Show starter prompts after streaming is done
+                setTimeout(() => {
+                    setShowStarterPrompts(true);
+                }, 666);
+            }
+        }, 20);
+
+        return () => clearInterval(streamInterval);
+    }, []); // Empty dependency array ensures this runs once on mount
+
     const sendMessage = (
         text: string,
         locations: string[],
         departments: string[],
         cvText?: string
     ) => {
+        // Hide starter prompts and welcome message once user sends a message
+        setShowStarterPrompts(false);
+        setShowWelcomeMessage(false);
+        
         append(
             { role: "user", content: text },
             {
@@ -36,6 +100,10 @@ export default function ChatContainer() {
                 },
             }
         );
+    };
+
+    const handleStarterPromptClick = (prompt: string) => {
+        sendMessage(prompt, ["Any"], ["Any"]);
     };
 
     // Auto-scroll when new content arrives **only if the user is already near the
@@ -57,57 +125,60 @@ export default function ChatContainer() {
             container.scrollTop = container.scrollHeight;
         }
         console.log(messages, "messages");
-    }, [messages]);
+    }, [messages, welcomeContent]);
 
-    const hasMessages = messages.length > 0;
+    const hasUserMessages = messages.some(m => m.role === 'user');
 
     return (
-        <div
-            /*
-             * Fill all remaining vertical space after the fixed header that lives in
-             * `layout.tsx`.  Because the <body> is a flex-column container, simply
-             * applying `flex-1` here ensures we grow to the full viewport height on
-             * every device without having to hard-code `calc(100vh-56px)`.
-             */
-            className={
-                hasMessages
-                    ? "flex flex-col flex-1 w-full min-h-0"
-                    : "flex flex-col flex-1 justify-center w-full min-h-0"
-            }
-        >
-            {hasMessages && (
-                <div ref={scrollRef} className="flex-1 overflow-y-auto">
-                    <div className="p-6 space-y-6 max-w-3xl mx-auto">
-                        {messages.map((m: AIMessage, idx) => (
-                            <ChatMessage
-                                key={m.id}
-                                role={m.role as "user" | "assistant"}
-                                content={m.content ?? ""}
-                                isThinking={isLoading && idx === messages.length - 1 && m.role === "assistant"}
-                            />
-                        ))}
-                        {/* Bottom sentinel for scrollIntoView fallback */}
-                        <div ref={bottomRef} />
+        <div className="flex flex-col flex-1 w-full min-h-0">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto">
+                <div className="p-6 space-y-6 max-w-3xl mx-auto">
+                    {/* Show welcome message */}
+                    {showWelcomeMessage && (
+                        <ChatMessage
+                            key="welcome"
+                            role="assistant"
+                            content={welcomeContent}
+                            isThinking={isStreamingWelcome}
+                        />
+                    )}
+                    
+                    {/* Regular chat messages */}
+                    {messages.map((m: AIMessage, idx) => (
+                        <ChatMessage
+                            key={m.id}
+                            role={m.role as "user" | "assistant"}
+                            content={m.content ?? ""}
+                            isThinking={isLoading && idx === messages.length - 1 && m.role === "assistant"}
+                        />
+                    ))}
+                    {/* Bottom sentinel for scrollIntoView fallback */}
+                    <div ref={bottomRef} />
+                </div>
+            </div>
+            
+            <div className="pb-4 px-4 sm:px-0 max-w-3xl mx-auto w-full">
+                {/* Show starter prompts above chat input when no user messages */}
+                {showStarterPrompts && !hasUserMessages && !isStreamingWelcome && (
+                    <div className="space-y-3 mb-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                            Here are some questions to get you started:
+                        </p>
+                        <div className="grid gap-2">
+                            {starterPrompts.map((prompt, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => handleStarterPromptClick(prompt)}
+                                    className="text-left p-3 text-sm bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-700 transition-colors"
+                                    disabled={isLoading}
+                                >
+                                    {prompt}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
-            {!hasMessages && (
-                <div className="text-center mb-8 space-y-4">
-                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-                        Find your perfect role at xAI
-                    </h1>
-                    <p className="text-gray-600 dark:text-gray-400">
-                        We&apos;ve ingested all of the open roles at xAI and can help you find the best fit.
-                    </p>
-                </div>
-            )}
-            <div
-                className={
-                    hasMessages
-                        ? "pb-4 px-4 sm:px-0 max-w-3xl mx-auto w-full"
-                        : "px-4 max-w-3xl mx-auto w-full"
-                }
-            >
+                )}
+                
                 <ChatInput onSend={sendMessage} disabled={isLoading} />
             </div>
         </div>
