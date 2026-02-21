@@ -196,40 +196,48 @@ export async function POST(req: Request) {
                 return cleanTextTags(text).replace(/<joblistingcard[^>]*>/gi, "");
             };
 
-            for await (const part of fullStream) {
-                if (part.type === "reasoning") {
-                    // Clean the reasoning text thoroughly, also stripping job card tags
-                    const cleanedDelta = cleanReasoningTags(part.textDelta);
+            try {
+                for await (const part of fullStream) {
+                    if (part.type === "reasoning") {
+                        // Clean the reasoning text thoroughly, also stripping job card tags
+                        const cleanedDelta = cleanReasoningTags(part.textDelta);
 
-                    // Only open details block if we haven't already and we have content
-                    if (!detailsOpened && cleanedDelta.trim()) {
-                        const detailsHeader = `<details><summary>💡 Thinking...</summary>\n\n`;
-                        controller.enqueue(encoder.encode(detailsHeader));
-                        detailsOpened = true;
-                        detailsOpen = true;
-                        hasReasoningContent = true;
-                    }
+                        // Only open details block if we haven't already and we have content
+                        if (!detailsOpened && cleanedDelta.trim()) {
+                            const detailsHeader = `<details><summary>💡 Thinking...</summary>\n\n`;
+                            controller.enqueue(encoder.encode(detailsHeader));
+                            detailsOpened = true;
+                            detailsOpen = true;
+                            hasReasoningContent = true;
+                        }
 
-                    if (cleanedDelta.trim()) {
-                        controller.enqueue(encoder.encode(cleanedDelta));
-                        hasReasoningContent = true;
-                    }
-                } else if (part.type === "text-delta") {
-                    // Close the <details> block the first time we encounter a
-                    // text-delta after it has been opened and we have reasoning content.
-                    if (detailsOpen && hasReasoningContent) {
-                        const detailsFooter = `\n\n</details>\n\n`;
-                        controller.enqueue(encoder.encode(detailsFooter));
-                        detailsOpen = false;
-                    }
+                        if (cleanedDelta.trim()) {
+                            controller.enqueue(encoder.encode(cleanedDelta));
+                            hasReasoningContent = true;
+                        }
+                    } else if (part.type === "text-delta") {
+                        // Close the <details> block the first time we encounter a
+                        // text-delta after it has been opened and we have reasoning content.
+                        if (detailsOpen && hasReasoningContent) {
+                            const detailsFooter = `\n\n</details>\n\n`;
+                            controller.enqueue(encoder.encode(detailsFooter));
+                            detailsOpen = false;
+                        }
 
-                    // Clean any stray thinking tags from text content (do NOT remove job cards)
-                    const cleanedTextDelta = cleanTextTags(part.textDelta);
+                        // Clean any stray thinking tags from text content (do NOT remove job cards)
+                        const cleanedTextDelta = cleanTextTags(part.textDelta);
 
-                    if (cleanedTextDelta.trim()) {
-                        controller.enqueue(encoder.encode(cleanedTextDelta));
+                        if (cleanedTextDelta) {
+                            controller.enqueue(encoder.encode(cleanedTextDelta));
+                        }
+                    } else if (part.type === "error") {
+                        console.error("Stream error from model:", part.error);
+                        controller.enqueue(encoder.encode("\n\nSorry, an error occurred while generating the response. Please try again."));
                     }
                 }
+            } catch (err) {
+                console.error("Chat stream error:", err);
+                controller.enqueue(encoder.encode("\n\nSorry, something went wrong. Please try again."));
             }
 
             // Ensure details block is closed if it was opened but never closed

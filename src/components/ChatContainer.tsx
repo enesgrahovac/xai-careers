@@ -123,7 +123,6 @@ export default function ChatContainer() {
             // Jump instead of smooth-scroll to avoid piling up animations.
             container.scrollTop = container.scrollHeight;
         }
-        console.log(messages, "messages");
     }, [messages, welcomeContent]);
 
     const hasUserMessages = messages.some(m => m.role === 'user');
