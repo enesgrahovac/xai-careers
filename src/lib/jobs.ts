@@ -6,23 +6,34 @@ export interface JobListing {
     description_md: string | null;
 }
 
+interface GetOpenJobsOptions {
+    locations?: string[];
+    departments?: string[];
+}
+
 /**
- * Fetch all open job listings from the database.
- * NOTE: This currently returns every listing.  Filtering by location/department
- * should be done by the caller for now.  In the future this can become a full
- * RAG retrieval function that embeds the listing descriptions and performs
- * semantic search based on the user query.
+ * Fetch open job listings from the database, optionally filtered by
+ * location and/or department.  Filters are applied with ILIKE so that
+ * partial / case-insensitive matches work (e.g. "Palo Alto" matches
+ * "Palo Alto, CA").
  */
-export async function getOpenJobs(): Promise<JobListing[]> {
-    // We rely on the edge-compatible @vercel/postgres client that is already used
-    // elsewhere in the codebase.
+export async function getOpenJobs(opts?: GetOpenJobsOptions): Promise<JobListing[]> {
     const { sql } = await import('@vercel/postgres');
 
+    const hasLocations = opts?.locations?.length && !opts.locations.includes("Any");
+    const hasDepartments = opts?.departments?.length && !opts.departments.includes("Any");
+
+    // Build a single query with optional WHERE clauses.  When no filters are
+    // active the conditions evaluate to TRUE so every row is returned.
     const result = await sql`
-    SELECT id, title, location, department, description_md
-    FROM job_listings
-    ORDER BY posted_at DESC
-  `;
+        SELECT id, title, location, department, description_md
+        FROM job_listings
+        WHERE
+            (${!hasLocations} OR location ILIKE ANY(${hasLocations ? opts!.locations!.map(l => `%${l}%`) : []}))
+            AND
+            (${!hasDepartments} OR department ILIKE ANY(${hasDepartments ? opts!.departments!.map(d => `%${d}%`) : []}))
+        ORDER BY posted_at DESC
+    `;
 
     return result.rows as unknown as JobListing[];
 } 

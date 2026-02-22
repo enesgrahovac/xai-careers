@@ -31,6 +31,21 @@ interface ChatRequestBody {
  * complete set of job listings.  This message is constant across the lifetime
  * of a conversation.
  */
+// Rough character limit per job description to stay within the model's
+// 131 072-token context window.  ~4 chars ≈ 1 token, so 2 000 chars ≈ 500
+// tokens.  With ~200 jobs this keeps the job block under ~100k tokens,
+// leaving room for conversation history, CV, and system instructions.
+const MAX_DESCRIPTION_CHARS = 2000;
+
+function truncateDescription(text: string | null): string {
+    if (!text) return 'No description available';
+    if (text.length <= MAX_DESCRIPTION_CHARS) return text;
+    // Cut at the last newline before the limit so we don't split mid-sentence.
+    const cut = text.lastIndexOf('\n', MAX_DESCRIPTION_CHARS);
+    const end = cut > MAX_DESCRIPTION_CHARS * 0.5 ? cut : MAX_DESCRIPTION_CHARS;
+    return text.slice(0, end) + '\n\n[Description truncated]';
+}
+
 function buildIdentityPrompt(jobs: JobListing[]) {
     // Format jobs in a more structured way for better LLM parsing
     const formattedJobs = jobs.map((job, index) => {
@@ -40,7 +55,7 @@ function buildIdentityPrompt(jobs: JobListing[]) {
 **Location:** ${job.location || 'Not specified'}
 
 **Job Description:**
-${job.description_md || 'No description available'}
+${truncateDescription(job.description_md)}
 
 ---`;
     }).join('\n\n');
@@ -96,8 +111,9 @@ Always pay attention to the user's desired locations and departments. This syste
 export async function POST(req: Request) {
     const { messages, locations, departments, cvText } = (await req.json()) as ChatRequestBody;
 
-    // Fetch all open job listings.
-    const jobs = await getOpenJobs();
+    // Fetch job listings, filtered by the user's selected location/department
+    // so we don't blow past the model's context window.
+    const jobs = await getOpenJobs({ locations, departments });
 
     // ---------------------------------------------------------------------
     // Build system messages
@@ -106,13 +122,6 @@ export async function POST(req: Request) {
         role: "system",
         content: buildIdentityPrompt(jobs),
     } as const;
-
-    // console.log(identitySystemMessage, "identitySystemMessage");
-
-    // const jobSystemMessage = {
-    //     role: "system",
-    //     content: buildJobListingsPrompt(filteredJobs),
-    // } as const;
 
     const filtersSystemMessage = {
         role: "system",
@@ -141,7 +150,6 @@ export async function POST(req: Request) {
             // Re-append filters and job listings before each user turn so the
             // model always sees the most recent context.
             preparedMessages.push({ ...filtersSystemMessage });
-            // preparedMessages.push({ ...jobSystemMessage });
         }
         preparedMessages.push(msg);
     }
