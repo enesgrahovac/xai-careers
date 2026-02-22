@@ -23,15 +23,24 @@ export async function getOpenJobs(opts?: GetOpenJobsOptions): Promise<JobListing
     const hasLocations = opts?.locations?.length && !opts.locations.includes("Any");
     const hasDepartments = opts?.departments?.length && !opts.departments.includes("Any");
 
-    // Build a single query with optional WHERE clauses.  When no filters are
-    // active the conditions evaluate to TRUE so every row is returned.
+    // @vercel/postgres sql tag only accepts Primitive values, not arrays.
+    // Build a combined ILIKE pattern with OR-style matching using '%loc1%|%loc2%'
+    // won't work either — instead join filter values into a single regex-style
+    // pattern and use the ~* (case-insensitive regex match) operator.
+    const locPattern = hasLocations
+        ? opts!.locations!.map(l => l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+        : '';
+    const deptPattern = hasDepartments
+        ? opts!.departments!.map(d => d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+        : '';
+
     const result = await sql`
         SELECT id, title, location, department, description_md
         FROM job_listings
         WHERE
-            (${!hasLocations} OR location ILIKE ANY(${hasLocations ? opts!.locations!.map(l => `%${l}%`) : []}))
+            (${!hasLocations} OR location ~* ${locPattern})
             AND
-            (${!hasDepartments} OR department ILIKE ANY(${hasDepartments ? opts!.departments!.map(d => `%${d}%`) : []}))
+            (${!hasDepartments} OR department ~* ${deptPattern})
         ORDER BY posted_at DESC
     `;
 
