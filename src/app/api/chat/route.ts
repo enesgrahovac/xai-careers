@@ -35,7 +35,7 @@ interface ChatRequestBody {
 // 131 072-token context window.  ~4 chars ≈ 1 token, so 2 000 chars ≈ 500
 // tokens.  With ~200 jobs this keeps the job block under ~100k tokens,
 // leaving room for conversation history, CV, and system instructions.
-const MAX_DESCRIPTION_CHARS = 2000;
+const MAX_DESCRIPTION_CHARS = 1000;
 
 function truncateDescription(text: string | null): string {
     if (!text) return 'No description available';
